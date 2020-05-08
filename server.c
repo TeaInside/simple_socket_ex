@@ -64,7 +64,7 @@ int server_socket(char *server_ip, uint16_t server_port)
    */
   if (bind(net_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
     perror("Bind failed");
-    goto close_server;
+    goto close_server_sock;
   }
 
   /**
@@ -72,7 +72,7 @@ int server_socket(char *server_ip, uint16_t server_port)
    */
   if (listen(net_fd, 3) < 0) {
     perror("Listen failed");
-    goto close_server;
+    goto close_server_sock;
   }
 
   printf("Listening on %s:%d...\n", server_ip, server_port);
@@ -96,7 +96,7 @@ int server_socket(char *server_ip, uint16_t server_port)
     rwbytes = recv(client_fd, &(pkt->len), sizeof(uint16_t), 0);
     if (rwbytes < 0) {
       perror("Read error");
-      goto close_client;
+      goto close_client_sock;
     }
 
     /**
@@ -105,7 +105,7 @@ int server_socket(char *server_ip, uint16_t server_port)
     rwbytes = recv(client_fd, &(pkt->data), pkt->len, 0);
     if (rwbytes < 0) {
       perror("Read error");
-      goto close_client;
+      goto close_client_sock;
     }
 
     /* Add null terminator */
@@ -117,16 +117,22 @@ int server_socket(char *server_ip, uint16_t server_port)
     {
       register int i;
       register int j;
-      register char k;
+      register int k;
+      register char l;
+
 
       pkt->data[pkt->len + 2] = '#';
       pkt->data[pkt->len + 3] = '#';
       pkt->data[pkt->len + 4] = '\0';
-      for (j = 0, i = pkt->len - 1; i > 1; i--, j++) {
-        k = pkt->data[i + 2];
-        pkt->data[i + 2] = pkt->data[j];
-        pkt->data[j] = k;
+
+      k = (pkt->len / 2) + 1;
+      j = pkt->len + 1;
+      for (i = 0; i < k; i++, j--) {
+        l = pkt->data[j];
+        pkt->data[j] = pkt->data[i];
+        pkt->data[i] = l;
       }
+
       pkt->data[0] = '#';
       pkt->data[1] = '#';
     }
@@ -143,7 +149,7 @@ int server_socket(char *server_ip, uint16_t server_port)
       rwbytes = send(client_fd, &(pkt->len), sizeof(uint16_t), 0);
       if (rwbytes < 0) {
         perror("Write error");
-        goto close_client;
+        goto close_client_sock;
       }
       wtotal += rwbytes;
 
@@ -151,18 +157,18 @@ int server_socket(char *server_ip, uint16_t server_port)
       rwbytes = send(client_fd, pkt->data, pkt->len, 0);
       if (rwbytes < 0) {
         perror("Write error");
-        goto close_client;
+        goto close_client_sock;
       }
       wtotal += rwbytes;
       printf("%ld bytes sent!\n", wtotal);
     }
 
-  close_client:
+  close_client_sock:
     close(client_fd);
     printf("\n");
   }
 
-close_server:
+close_server_sock:
   close(net_fd);
   return 1;
 }
