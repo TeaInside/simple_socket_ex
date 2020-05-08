@@ -1,4 +1,4 @@
 
 all:
-	gcc client.c -o client
-	gcc server.c -o server
+	clang client.c -o client
+	clang server.c -o server
