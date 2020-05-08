@@ -120,7 +120,6 @@ int server_socket(char *server_ip, uint16_t server_port)
       register int k;
       register char l;
 
-
       pkt->data[pkt->len + 2] = '#';
       pkt->data[pkt->len + 3] = '#';
       pkt->data[pkt->len + 4] = '\0';
