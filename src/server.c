@@ -89,7 +89,6 @@ int main(int argc, char *argv[])
     if (argc == 2)
     {
         printf("Port is not defined, using default port %d", PORT);
-        return 1;
     }
     if (argc == 3)
     {
