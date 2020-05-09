@@ -1,12 +1,13 @@
 /* 
- * First Written: 2020 05 08
- * SERVER
- * Written by   : Aviezab
+ * First Written : 2020 05 08
+ * SERVER C
+ * Written by    : Aviezab
  * MIT License
  * Clang-format
  * Convention    : using memset instead of bzero, bzero is not standard for C lib
 */
 
+// STD Lib
 #include <stdio.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -14,7 +15,10 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <signal.h>
+#include <unistd.h>
+// Custom Library
 #include <data_structure.h>
 
 #define MAX 1024 // Maximum buffer size
@@ -22,58 +26,59 @@
 #define SA struct sockaddr
 
 // Default PORT 9090
-int PORT = 9090;
-int sockfd, connfd, len;
+uint16_t PORT = 9090;
+int sockfd, connfd;
+unsigned int len;
 struct sockaddr_in serveraddr, cli;
 // handling ctrl c and exit
 struct sigaction act;
 
 // Event loop to be used to communicate between server and client
-int evxloop(int sockfd)
+int evsvrloop(int sockfd)
 {
     // Initiate buffer and loop variable
-    char buff[MAX];
-    int n;
+    char buff[sizeof(data_arena)];
+    //printf("DATA ARENA SIZE: %ld\n", sizeof(data_arena));
+    packet *pkt = (packet *)&data_arena;
+    int i;
     // infinite loop
     for (;;)
     {
-        // Fill buffer with zeroes
+        // Read the message from client and copy it in packet struct
         memset(buff, 0, strlen(buff));
-        // read the message from client and copy it in buffer
         read(sockfd, buff, sizeof(buff));
-
         printf("Received data \"%s\"\t (%ld bytes)\n", buff, strlen(buff));
-        n = 0;
-        size_t bufflen = strlen(buff);
-        size_t bufflen2 = bufflen + 4;
-        char buffx[bufflen2];
-        printf("size_t: %d", sizeof(buffx));
-        memset(buffx, '#', sizeof(buffx));
-        buffx[bufflen2 - 2] = '#';
-        buffx[bufflen2 - 1] = '#';
-        buffx[bufflen2] = '\0';
-        printf("init buffx: %s\n", buffx);
-        int i;
-        // Reverse string, and give ##
-        for (i = 0; i < bufflen; i++)
-        {
-            printf("i: %d %c\n", i, buff[i]);
-            buffx[i + 2] = buff[bufflen - 1 - i];
-        }
-        buffx[0] = '#';
-        buffx[1] = '#';
-        printf("Reversed: %s", buffx);
-        break;
 
-        write(sockfd, buffx, sizeof(buffx));
-        memset(buff, 0, strlen(buff));
-
-        // if msg contains ":q" then server exit and chat ended.
-        if (strncmp(":q", buff, 2) == 0)
+        // if msg contains "q" then server exit and chat ended.
+        if (strncmp("q", buff, 1) == 0)
         {
-            printf("Exitting server ...\n");
+            printf("Exiting Server & send exit command to Client ...\n");
+            write(sockfd, "q", 1);
             break;
         }
+        size_t len_cltmsg = strlen(buff);
+        // Empty to reuse
+        for (int i = 0; i < len_cltmsg; i++)
+        {
+            pkt->data[i] = '\0';
+        }
+        pkt->len = len_cltmsg + 4;
+        printf("size pkt_len: %hu\n", pkt->len);
+        pkt->data[pkt->len - 2] = '#';
+        pkt->data[pkt->len - 1] = '#';
+        pkt->data[pkt->len] = '\0';
+        pkt->data[0] = '#';
+        pkt->data[1] = '#';
+        printf("%s Cek pkt->data\n", pkt->data);
+        // Reuse pkt->data to reply Client
+        for (i = 0; i < len_cltmsg; i++)
+        {
+            //printf("i: %d %c\n", i, buff[i]);
+            pkt->data[i + 2] = buff[len_cltmsg - 1 - i];
+            printf("from last i: %lu %c\n", len_cltmsg - 1 - i, buff[len_cltmsg - 1 - i]);
+        }
+        printf("Reversed: %s %hu\n", pkt->data, pkt->len);
+        write(sockfd, pkt->data, pkt->len);
     }
     return 0;
 }
@@ -100,7 +105,7 @@ int main(int argc, char *argv[])
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1)
     {
-        printf("socket creation failed...\n");
+        printf("Socket creation failed...\n");
         exit(0);
     }
     else
@@ -116,7 +121,7 @@ int main(int argc, char *argv[])
     // Binding newly created socket to given IP and verification
     if ((bind(sockfd, (SA *)&serveraddr, sizeof(serveraddr))) != 0)
     {
-        printf("socket bind failed...\n");
+        printf("Socket bind failed...\n");
         exit(0);
     }
     else
@@ -136,14 +141,14 @@ int main(int argc, char *argv[])
     connfd = accept(sockfd, (SA *)&cli, &len);
     if (connfd < 0)
     {
-        printf("server acccept failed...\n");
+        printf("Server acccept failed...\n");
         exit(0);
     }
     else
-        printf("server acccept the client...\n");
+        printf("Server acccepts the Client...\n");
 
     // Function for chatting between client and server
-    evxloop(connfd);
+    evsvrloop(connfd);
     close(sockfd);
     // close the socket
     // if (atexit(close(sockfd)) != 0)

@@ -1,57 +1,61 @@
 /* 
- * First Written: 2020 05 08
- * SERVER
- * Written by   : Aviezab
+ * First Written : 2020 05 08
+ * CLIENT C
+ * Written by    : Aviezab
  * MIT License
  * Clang-format
  * Convention    : using memset instead of bzero, bzero is not standard for C lib
 */
 
+// STD Lib
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#define MAX 1024
+#include <unistd.h>
+#include <arpa/inet.h>
+// Custom Library
+#include <data_structure.h>
+// Define SA as sockaddr struct
 #define SA struct sockaddr
 
-uint16_t PORT = 8080;
+uint16_t PORT = 9090;
 
-int func(int sockfd)
+int evcltloop(int sockfd)
 {
-    char buff[MAX];
-    int n;
+    // This declaration below
+    packet *pkt = (packet *)&data_arena;
     for (;;)
     {
     awal:
-        memset(buff, 0, strlen(buff));
-        printf("Enter the string : ");
-        n = 0;
-        while ((buff[n++] = getchar()) != '\n')
-            ;
-        size_t akhirb = strlen(buff);
-        if (akhirb == 1024)
+        printf("Enter the message : ");
+        fgets(pkt->data, 1024, stdin);
+        pkt->len = strlen(pkt->data) - 1;
+        pkt->data[pkt->len] = '\0';
+        size_t akhirb = strlen(pkt->data);
+        if (akhirb == sizeof(data_arena))
         {
-            printf("This version is only able to pass 1MB of message.");
+            printf("This version is only able to pass %lu of message.", sizeof(data_arena));
             goto awal;
         }
         if (akhirb == 0)
         {
-            printf("No single char passed.");
+            printf("No single char passed. Input again!");
             goto awal;
         }
-        buff[akhirb - 1] = '\0';
-        write(sockfd, buff, sizeof(buff));
-        memset(buff, 0, akhirb);
-        break;
-        read(sockfd, buff, sizeof(buff));
-
-        printf("From Server : %s\n\n", buff);
-        if ((strncmp(buff, "exit", 4)) == 0)
+        pkt->data[pkt->len] = '\0';
+        write(sockfd, pkt->data, pkt->len);
+        // Reuse to be reply message from server
+        memset(pkt->data, 0, pkt->len);
+        read(sockfd, pkt->data, pkt->len + 4);
+        printf("From Server (%d) : %s\n", pkt->len + 4, pkt->data);
+        if ((strncmp(pkt->data, "q", 1)) == 0)
         {
-            printf("Client Exit...\n");
+            printf("Received terminate signal from server. Client Exit...\n");
             break;
         }
+        memset(pkt->data, 0, pkt->len);
     }
     return 0;
 }
@@ -104,7 +108,7 @@ int main(int argc, char *argv[])
         printf("Connected to the server..\n");
 
     // function for chat
-    func(sockfd);
+    evcltloop(sockfd);
     close(sockfd);
     // close the socket
     // if (atexit(close(sockfd)) != 0)
