@@ -21,7 +21,6 @@
 // Custom Library
 #include <data_structure.h>
 
-#define MAX 1024 // Maximum buffer size
 // Change SA to sockaddr to be more readable
 #define SA struct sockaddr
 
@@ -63,21 +62,17 @@ int evsvrloop(int sockfd)
             pkt->data[i] = '\0';
         }
         pkt->len = len_cltmsg + 4;
-        printf("size pkt_len: %hu\n", pkt->len);
         pkt->data[pkt->len - 2] = '#';
         pkt->data[pkt->len - 1] = '#';
         pkt->data[pkt->len] = '\0';
         pkt->data[0] = '#';
         pkt->data[1] = '#';
-        printf("%s Cek pkt->data\n", pkt->data);
         // Reuse pkt->data to reply Client
         for (i = 0; i < len_cltmsg; i++)
         {
             //printf("i: %d %c\n", i, buff[i]);
             pkt->data[i + 2] = buff[len_cltmsg - 1 - i];
-            printf("from last i: %lu %c\n", len_cltmsg - 1 - i, buff[len_cltmsg - 1 - i]);
         }
-        printf("Reversed: %s %hu\n", pkt->data, pkt->len);
         write(sockfd, pkt->data, pkt->len);
     }
     return 0;
@@ -150,13 +145,4 @@ int main(int argc, char *argv[])
     // Function for chatting between client and server
     evsvrloop(connfd);
     close(sockfd);
-    // close the socket
-    // if (atexit(close(sockfd)) != 0)
-    // {
-    //     perror("Error closing socket ...");
-    // }
-    // else
-    // {
-    //     printf("Server socket successfully closed");
-    // }
 }
